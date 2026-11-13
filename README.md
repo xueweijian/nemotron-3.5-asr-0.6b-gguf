@@ -4,7 +4,7 @@ A **323.59 MB** mixed-precision GGUF of [`nvidia/nemotron-3.5-asr-streaming-0.6b
 
 **Download:** [`nemotron-3.5-asr-0.6b-325mb.gguf`](https://huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf) · 323,593,760 bytes (323.59 MB decimal / 308.6 MiB) · `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
 
-**323.59 MB — 3.95× smaller than the fp16 source (1277.03 MB), at +1.23 points WER.** That is 0.5072 bytes per weight instead of 2.0. Every number on this card was measured on this machine and is reproducible from the files in the repo: size is a byte count, accuracy is per locale in the table below, speed is wall-clock on a fixed 20-clip batch.
+**323.59 MB — 3.95× smaller than the fp16 source (1277.03 MB), at +1.23 points WER.** That is 0.5072 bytes per weight instead of 2.0. Every number on this card was measured on the hardware described below and is reproducible from the files in the repo: size is a byte count, accuracy is per locale in the table below, speed is wall-clock on a fixed 20-clip batch.
 
 Converted from `nvidia/nemotron-3.5-asr-streaming-0.6b` at revision [`ea30d66`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/ea30d66debe3740a08b573244286791d423d6b3e), targeting `transcribe.cpp` 0.4.2.
 
@@ -131,7 +131,7 @@ A/B; four runs each, the first discarded as cold (page cache), median of the rem
 
 The 3.95× smaller file is **15.8% slower**, not faster. Cause, inferred and not ablated: this
 Xeon has AVX-512 + F16C, so f16 dot products run on native instructions, while `TQ1_0`/`Q4_0`
-must quantize F32 activations to `Q8_K` before every matmul. What the 4× reduction buys is
+must quantize F32 activations to `Q8_K` before every matmul. What the 3.95× reduction buys is
 disk and RAM — 324 MB instead of 1.28 GB of weights, 539 MB peak instead of a machine that
 must hold the fp16 file — not CPU time. On bandwidth-starved devices the ranking may well
 flip; that is untested, and no such measurement exists in this repo.
