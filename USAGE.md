@@ -13,11 +13,14 @@ Everything here runs **CPU only**. There is no GPU path for `TQ1_0` — see the 
 
 ## 1. Get the model
 
+The 324 MB file is distributed through Hugging Face as `nemotron-3.5-asr-0.6b-325mb-gguf`. This repository deliberately does **not** carry it — a git host is the wrong place for a binary that large, and the checksum is what actually identifies the artifact.
+
 ```bash
-# from Hugging Face
-huggingface-cli download <hf-user>/nemotron-3.5-asr-0.6b-325mb-gguf \
+# once published on Hugging Face (replace <org> with the publisher's account):
+huggingface-cli download <org>/nemotron-3.5-asr-0.6b-325mb-gguf \
     nemotron-3.5-asr-0.6b-325mb.gguf --local-dir .
 
+# in every case, verify before use:
 sha256sum -c SHA256SUMS
 # expect: nemotron-3.5-asr-0.6b-325mb.gguf: OK
 ```

@@ -6,6 +6,8 @@ Weights: **`nemotron-3.5-asr-0.6b-325mb.gguf`** · 323,593,760 bytes · `sha256 
 
 > **Unofficial community quantization. Not affiliated with or endorsed by NVIDIA.** `nemotron` is a NVIDIA trademark, used here descriptively. The base model ships under **OpenMDW-1.1**; this derivative keeps that license. The code in this repository is MIT.
 
+> **Status: the weights are pending upload to Hugging Face.** This repository carries the model card, the runtime patch, the evaluation driver and the checksums — not the 324 MB binary. Whatever copy you obtain, verify it against `SHA256SUMS` before use: the export pipeline is not byte-deterministic, so size alone does not identify the file.
+
 > **The 325 MB budget is self-imposed.** It is not an external standard, not a round number from any paper, and not a property of the base model. Inside this project the line moved 220 → 295 → 320 → 325 MB as the accuracy cost of each step became measurable. Treat "325 MB" as a design target that this artifact meets, not as a claim that 325 MB is a meaningful threshold for anyone else.
 
 ---
