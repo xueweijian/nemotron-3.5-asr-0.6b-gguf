@@ -51,7 +51,7 @@ A **323.59 MB** mixed-precision GGUF of [`nvidia/nemotron-3.5-asr-streaming-0.6b
 
 **Download:** [`nemotron-3.5-asr-0.6b-325mb.gguf`](https://huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf) · 323,593,760 bytes (323.59 MB decimal / 308.6 MiB) · `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
 
-**Smallest published build for this base model.** 323.59 MB, against 401.49 MB for the next smallest downloadable file and 495.83 MB for the common `Q4_K_M` preset. That is a byte count of files you can download and re-measure — not a claim about accuracy, which is not compared across builds here (see [What this is not](#what-this-is-not)).
+**323.59 MB — 3.95× smaller than the fp16 source (1277.03 MB), at +1.23 points WER.** That is 0.5072 bytes per weight instead of 2.0. Every number on this card was measured on this machine and is reproducible from the files in the repo: size is a byte count, accuracy is per locale in the table below, speed is wall-clock on a fixed 20-clip batch.
 
 Converted from `nvidia/nemotron-3.5-asr-streaming-0.6b` at revision [`ea30d66`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/ea30d66debe3740a08b573244286791d423d6b3e), targeting `transcribe.cpp` 0.4.2.
 
@@ -141,23 +141,25 @@ Why the other 23 still work: the tensors that decide *which* language is being t
 
 ## Speed and memory
 
-Measured on the patched runtime, CPU only, `--n-ctx 1024`, `--batch` mode:
+Measured on the patched runtime, CPU only, `--n-ctx 1024`, `--batch`, `--threads 4`, 20 clips / 188.6 s of audio:
 
 | | |
 |---|---|
-| Hardware | 4 vCPU (cgroup-limited) of a 192-core AMD EPYC 9K65 (Zen 5), 8 GiB cap |
-| Throughput | **RTFx 14.7×** — 188.6 s of audio in 12.83 s wall, 20 clips |
-| Peak RSS | **537 MB** → this file runs on a **1 GB** machine (the f16 build needs 1.28 GB for weights alone) |
+| Hardware | **4 vCPU** (cgroup quota `400000 100000`), 8 GiB cap — two hosts measured: Intel Xeon 6983P-C, AMD EPYC 9K65 (Zen 5) |
+| Throughput | **RTFx 10.9×** on the Xeon (188.6 s in 17.34 s) · **14.7×** on the EPYC (12.83 s) |
+| Peak RSS | **539 MB** → this file runs on a **1 GB** machine (the f16 build needs 1.28 GB for weights alone) |
 | Disk | 324 MB |
 
 `RTFx` here means audio seconds ÷ wall-clock seconds over a whole batch, I/O included. It is
-not comparable to a per-clip streaming RTF.
+not comparable to a per-clip streaming RTF, and it is **host-dependent**: the same file, same
+thread count, same audio gave 10.9× and 14.7× on two different server CPUs. Treat the lower
+number as the one to plan with.
 
-**This is a server core, not a laptop.** The 14.7× is 4 threads against a cgroup quota of 4 vCPU —
-thread count matched to the real quota. Beware `nproc` on such a box: it reports 32 (the host's
-core count) while the quota is 4, so a script that takes `nproc` as the thread count oversubscribes
-8× and lands at `RTFx 0.36×`. **That figure measures the misconfiguration, not the hardware.**
-No consumer-laptop measurement exists yet; measure your own before you plan capacity.
+**This is a server core, not a laptop.** Both figures are 4 threads against a cgroup quota of
+4 vCPU — thread count matched to the real quota. Beware `nproc` on such a box: it reports 32 (the
+host's core count) while the quota is 4, so a script that takes `nproc` as the thread count
+oversubscribes 8× and lands at `RTFx 0.36×`. **That figure measures the misconfiguration, not the
+hardware.** No consumer-laptop measurement exists yet; measure your own before you plan capacity.
 
 Two more counter-intuitive facts, both measured:
 
@@ -166,19 +168,20 @@ Two more counter-intuitive facts, both measured:
 
 ### Quantization buys size, not speed
 
-Same machine, same runtime, same 8 clips (86.3 s), 32 threads:
+Same host (Xeon 6983P-C), same runtime, same 20 clips (188.6 s), `--threads 4`. Runs alternate
+A/B; four runs each, the first discarded as cold (page cache), median of the remaining three:
 
 | Build | Size | Wall | RTFx |
 |---|---|---|---|
-| f16 | 1277.03 MB | 10.4 s | 8.34× |
-| Mixed 2/4/8-bit (307 MB build) | 307.14 MB | 11.7 s | 7.35× |
+| fp16 source | 1277.03 MB | 14.98 s | 12.59× |
+| **this file** | **323.59 MB** | **17.34 s** | **10.88×** |
 
-One 11 s clip, median of three warm runs: **1336.7 ms** (307 MB) vs **1252.8 ms** (f16) — the
-quantized build is **6.7% slower**. Cause, inferred and not ablated: this EPYC has AVX-512/F16C,
-so f16 dot products run on native instructions, while `TQ1_0`/`Q4_0` must quantize F32
-activations to `Q8_K` before every matmul. **The 6.7% was measured on the 307 MB build of this
-family, not on the 323.59 MB file** — smaller weights buy disk and RAM, not CPU time. On
-bandwidth-starved devices the ranking may well flip; that is untested.
+The 3.95× smaller file is **15.8% slower**, not faster. Cause, inferred and not ablated: this
+Xeon has AVX-512 + F16C, so f16 dot products run on native instructions, while `TQ1_0`/`Q4_0`
+must quantize F32 activations to `Q8_K` before every matmul. What the 4× reduction buys is
+disk and RAM — 324 MB instead of 1.28 GB of weights, 539 MB peak instead of a machine that
+must hold the fp16 file — not CPU time. On bandwidth-starved devices the ranking may well
+flip; that is untested, and no such measurement exists in this repo.
 
 ### No GPU
 
@@ -212,7 +215,7 @@ CLI=$(python3 -c "import json;print(json.load(open('build/build.json'))['binarie
 
 **The binary is not at `./build/bin/`** — `r2_build.sh` builds in a scratch copy and the default location is `$TMPDIR/nemotron-build/tc-src/build/bin/transcribe-cli`. The `CLI=` line above is the reliable way to find it. If you build by hand instead (`cmake -S . -B build` inside `transcribe.cpp/`), then `./build/bin/transcribe-cli` is correct.
 
-Prerequisites: C++17 toolchain, `cmake` ≥ 3.20, `ninja`. Peak RSS 537 MB measured.
+Prerequisites: C++17 toolchain, `cmake` ≥ 3.20, `ninja`. Peak RSS 539 MB measured.
 
 The patch does two things, both minimal: it adds `GGML_TYPE_TQ1_0` to the linear-tensor whitelist, and it routes 48 one-by-one convolutions through the linear getter instead of the conv getter. See `USAGE.md` for the full walkthrough and for reproducing the accuracy table.
 
@@ -221,7 +224,7 @@ The patch does two things, both minimal: it adds `GGML_TYPE_TQ1_0` to the linear
 - **Not a 40-locale model.** 17 locales measured on the **full test split** — 11,947 utterances, 39.54 h, each with an fp16 baseline on the same manifest. The other 23 are untested, not "probably fine".
 - **Not faster than the base model on GPU.** There is no GPU path.
 - **Not bit-exact reproducible on export.** Two runs of the identical configuration produced byte-different files of identical size. Only the published sha256 denotes the evaluated artifact — if you re-export, you get "a" file, not "the" file.
-- **Not an accuracy comparison across builds.** Published WER figures elsewhere are measured on different audio, runtime versions and normalizations; they are not directly comparable to the 17-locale weighted number above, and none is asserted here. Size is the one axis that can be compared without ambiguity, because it is a byte count of a downloadable file: 323.59 MB here, 401.49 MB for the next smallest build, 495.83 MB for the common `Q4_K_M` preset.
+- **Not an accuracy comparison across builds.** Published WER figures elsewhere are measured on different audio, runtime versions and normalizations; they are not directly comparable to the 17-locale weighted number above, and none is asserted here. The only build this card compares against is the fp16 source it was exported from, on the same manifest: 12.98% → 14.21%.
 - **Not affiliated with NVIDIA.** See the notice at the top.
 
 ## Citation

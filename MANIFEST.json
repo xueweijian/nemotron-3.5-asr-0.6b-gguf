@@ -25,10 +25,19 @@
   "runtime": {
     "engine": "transcribe.cpp 0.4.2 (patched)",
     "patch": "patches/r2/0001-tq1-linear-and-2d-pointwise.patch (29 lines, 10 changed)",
-    "rtfx": 14.7,
-    "rtfx_condition": "AMD EPYC 9K65, 4 threads, 20 clips / 188.6 s audio",
-    "peak_rss_mb": 537,
-    "n_ctx_note": "--n-ctx 1024 is required only in --batch mode (decoder state leaks across items); single-file inference does not need it and transcribe.cpp documents n_ctx as a no-op for this architecture"
+    "rtfx": 10.88,
+    "rtfx_condition": "Intel Xeon 6983P-C, 4 vCPU cgroup quota (400000 100000), --threads 4, --n-ctx 1024 --batch, 20 clips / 188.6 s audio, median of 3 warm runs; 14.7x on an AMD EPYC 9K65 under the same protocol",
+    "peak_rss_mb": 539,
+    "n_ctx_note": "--n-ctx 1024 is required only in --batch mode (decoder state leaks across items); single-file inference does not need it and transcribe.cpp documents n_ctx as a no-op for this architecture",
+    "fp16_ab": {
+      "fp16_bytes": 1277030944,
+      "fp16_wall_s": 14.98,
+      "fp16_rtfx": 12.59,
+      "this_file_wall_s": 17.34,
+      "this_file_rtfx": 10.88,
+      "delta_pct": 15.8,
+      "protocol": "same host, A/B alternating, 4 runs each, first discarded as cold, median of 3"
+    }
   },
   "eval": {
     "dataset": "google/fleurs test split",

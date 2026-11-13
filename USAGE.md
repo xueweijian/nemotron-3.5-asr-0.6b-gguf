@@ -9,7 +9,7 @@ Everything here runs **CPU only**. There is no GPU path for `TQ1_0` — see the 
 | C++ toolchain | C++17, `cmake` ≥ 3.20, `ninja` |
 | Python | 3.10+ (only for the evaluation driver; no third-party packages) |
 | Disk | ~1.5 GB for the runtime source + build, 324 MB for the model |
-| RAM | 537 MB peak measured; 1 GB is comfortable |
+| RAM | 539 MB peak measured; 1 GB is comfortable |
 
 ## 1. Get the model
 
@@ -55,7 +55,7 @@ The path below assumes the manual build from §2, run from inside `transcribe.cp
 
 ### The two flags that matter
 
-**`--n-ctx 1024` — only when you use `--batch`.** Single-file inference ignores it: transcribe.cpp documents `n_ctx` as a no-op for this architecture, and there is no KV ceiling to lower. In batch mode the default equals the model maximum, decoder state leaks across items, and one bad sample drags the whole run to the ceiling: a 7.1 s clip took 20+ minutes. Measured: the same binary with the default lands in single-digit RTFx, with `1024` it reaches 14.7× (8 items in 11.6 s). That is a workaround for a batch-mode bug, not a property of this file.
+**`--n-ctx 1024` — only when you use `--batch`.** Single-file inference ignores it: transcribe.cpp documents `n_ctx` as a no-op for this architecture, and there is no KV ceiling to lower. In batch mode the default equals the model maximum, decoder state leaks across items, and one bad sample drags the whole run to the ceiling: a 7.1 s clip took 20+ minutes. With `--n-ctx 1024` the same 8-item batch (86.3 s of audio) finished in 11.6 s; without it, the run never got near that. That is a workaround for a batch-mode bug, not a property of this file.
 
 **`-l` must be a locale the runtime's prompt dictionary knows.** Two FLEURS tags need remapping — `es-419 → es`, `ar-EG → ar`. The other 15 locales in this release work as-is. If you pass an unknown tag the CLI does not fail loudly; it falls back and the transcript quality silently changes. That is the single most common way to get wrong numbers.
 
@@ -68,15 +68,17 @@ Set threads to the **real CPU quota**, never to `nproc`. On a container with a 4
 `RTFx` in this repo means audio seconds ÷ wall-clock seconds over a whole batch, I/O included.
 Two things that are easy to get wrong:
 
-- **The published 14.7× is a server core** — 4 vCPU of an EPYC 9K65, not a laptop, with the
-  thread count matched to the quota (4 threads / 4 vCPU). Watch `nproc` on such a box: it reports
-  32 while the quota is 4, so a script that defaults to `nproc` oversubscribes 8× and collapses to
-  `RTFx 0.36×` — a configuration failure, not the hardware's ceiling. No consumer-laptop
-  measurement exists yet; run your own before sizing hardware.
-- **Smaller weights do not mean less CPU time.** Same machine, same 8 clips: 307.14 MB build
-  → 11.7 s; 1277.03 MB f16 → 10.4 s. The quantized build is 6.7% *slower*, because `TQ1_0`/`Q4_0`
-  quantize activations to `Q8_K` before each matmul while f16 rides AVX-512/F16C directly. What
-  you buy is disk and RAM (537 MB peak, fits a 1 GB box), not speed.
+- **The published throughput is a server core** — 4 vCPU (cgroup quota) on two different hosts,
+  not a laptop, with the thread count matched to the quota (4 threads / 4 vCPU): **RTFx 10.9×** on
+  an Intel Xeon 6983P-C and **14.7×** on an AMD EPYC 9K65, same file and same 20-clip batch. Watch
+  `nproc` on such a box: it reports 32 while the quota is 4, so a script that defaults to `nproc`
+  oversubscribes 8× and collapses to `RTFx 0.36×` — a configuration failure, not the hardware's
+  ceiling. No consumer-laptop measurement exists yet; run your own before sizing hardware.
+- **Smaller weights do not mean less CPU time.** Same host, same 20 clips (188.6 s), 4 threads,
+  A/B alternating, median of 3 warm runs: 323.59 MB file → 17.34 s; 1277.03 MB f16 source →
+  14.98 s. This file is **15.8% slower**, because `TQ1_0`/`Q4_0` quantize activations to `Q8_K`
+  before each matmul while f16 rides AVX-512/F16C directly. What you buy is disk and RAM
+  (539 MB peak, fits a 1 GB box), not speed.
 
 ## 4. Reproduce the accuracy table
 
