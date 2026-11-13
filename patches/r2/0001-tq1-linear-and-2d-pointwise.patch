@@ -1,0 +1,29 @@
+--- a/src/transcribe-weights-util.h
++++ b/src/transcribe-weights-util.h
+@@ -49,7 +49,7 @@
+ 
+ #define TRANSCRIBE_QUANT_LINEAR_TYPES                                                                             \
+     GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_BF16, GGML_TYPE_Q4_0, GGML_TYPE_Q4_1, GGML_TYPE_Q5_0, GGML_TYPE_Q5_1, \
+-        GGML_TYPE_Q8_0, GGML_TYPE_Q4_K, GGML_TYPE_Q5_K, GGML_TYPE_Q6_K
++        GGML_TYPE_Q8_0, GGML_TYPE_Q4_K, GGML_TYPE_Q5_K, GGML_TYPE_Q6_K, GGML_TYPE_TQ1_0
+ 
+ #define TRANSCRIBE_QUANT_CONV_TYPES GGML_TYPE_F32, GGML_TYPE_F16
+ 
+--- a/src/arch/parakeet/weights.cpp
++++ b/src/arch/parakeet/weights.cpp
+@@ -949,9 +949,13 @@
+         // back to d_model.
+         GET_F32(b.norm_conv_w, lname("enc.blocks.%d.norm_conv.weight", i), d_model);
+         GET_F32(b.norm_conv_b, lname("enc.blocks.%d.norm_conv.bias", i), d_model);
+-        GET_CONV(b.conv_pw1_w, lname("enc.blocks.%d.conv.pointwise1.weight", i), 1, d_model, 2 * d_model);
++        // R2 patch: pointwise 1x1 允许 2-D 量化张量 [d_model, 2*d_model]。
++        // NeMo 存的是 Conv1d(k=1) 的 [out, in, 1]，k 维永远是 1 → ne0=1，
++        // 装不下任何 block 量化；导出时剥掉尾维按 2-D 写，前向 reshape_2d
++        // 后仍是同一套 mul_mat（conformer.h 的 direct_pw 默认 true）。
++        GET_LIN(b.conv_pw1_w, lname("enc.blocks.%d.conv.pointwise1.weight", i), d_model, 2 * d_model);
+         GET_CONV(b.conv_dw_w, lname("enc.blocks.%d.conv.depthwise.weight", i), k, 1, d_model);
+-        GET_CONV(b.conv_pw2_w, lname("enc.blocks.%d.conv.pointwise2.weight", i), 1, d_model, d_model);
++        GET_LIN(b.conv_pw2_w, lname("enc.blocks.%d.conv.pointwise2.weight", i), d_model, d_model);
+         GET_F32(b.conv_bn_w, lname("enc.blocks.%d.conv.bn.weight", i), d_model);
+         GET_F32(b.conv_bn_b, lname("enc.blocks.%d.conv.bn.bias", i), d_model);
+         if (hp.enc_conv_norm_type == ParakeetHParams::ConvNormType::BatchNorm) {

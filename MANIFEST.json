@@ -1,0 +1,68 @@
+{
+  "name": "nemotron-3.5-asr-0.6b-325mb",
+  "display_name": "nemotron-3.5-asr-0.6b-325mb — 17-locale mixed-precision GGUF",
+  "artifact": "nemotron-3.5-asr-0.6b-325mb.gguf",
+  "size_bytes": 323593760,
+  "size_mb_decimal": 323.59,
+  "size_mib": 308.6,
+  "sha256": "5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776",
+  "base_model": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  "base_license": "OpenMDW-1.1",
+  "code_license": "MIT",
+  "unofficial": true,
+  "affiliation": "Not affiliated with or endorsed by NVIDIA. Community quantization of a NVIDIA base model.",
+  "size_budget": {
+    "mb": 325,
+    "self_imposed": true,
+    "note": "325 MB is a project-internal target, revised 220 -> 295 -> 320 -> 325 MB during development. It is not an external standard and not a property of the base model. The delivered artifact sits 1.41 MB inside this line and 3.59 MB above the earlier 320 MB line."
+  },
+  "format": {
+    "container": "GGUF",
+    "version": 3,
+    "tensors": 653,
+    "elements": 637991968,
+    "bytes_per_weight": 0.5072,
+    "type_histogram": {
+      "TQ1_0": {"tensors": 106, "elements": 164626432, "share_pct": 25.8},
+      "Q4_0": {"tensors": 155, "elements": 433061888, "share_pct": 67.9},
+      "Q8_0": {"tensors": 14, "elements": 39575552, "share_pct": 6.2},
+      "F32": {"tensors": 378, "elements": 728096, "share_pct": 0.1}
+    },
+    "histogram_note": "This is a result, not a recipe. GGUF metadata exposes per-tensor types to anyone who loads the file; it does not say how the assignment was found."
+  },
+  "runtime": {
+    "engine": "transcribe.cpp (patched)",
+    "patch": "patches/r2/0001-tq1-linear-and-2d-pointwise.patch",
+    "required_flag": "--n-ctx 1024",
+    "required_flag_reason": "Default n-ctx equals the model maximum; batch mode then over-allocates and throughput collapses. 1024 is the measured working value.",
+    "rtfx": 14.7,
+    "rtfx_condition": "AMD EPYC 9K65, 4 threads, 20 clips / 188.6 s audio / 12.83 s wall",
+    "peak_rss_mb": 537,
+    "gpu_support": "none — TQ1_0 has no CUDA kernel; Metal rejects the type. CPU and Vulkan are the paths."
+  },
+  "eval": {
+    "dataset": "google/fleurs",
+    "split": "test",
+    "utterances": 11947,
+    "audio_hours": 39.54,
+    "locales": 17,
+    "metric": "WER for 14 locales, CER for zh-CN / ja-JP / ko-KR",
+    "weighted_primary": 0.1421,
+    "fp16_weighted_primary": 0.1298,
+    "delta_points": 1.23,
+    "zh_cn_cer": 0.2022,
+    "zh_cn_cer_fp16": 0.2001,
+    "worst_locale_delta_points": 3.12,
+    "worst_locale": "nl-NL",
+    "best_locale_delta_points": 0.21,
+    "best_locale": "zh-CN",
+    "empty_transcripts": 5,
+    "evaluated_at": "2026-11-13"
+  },
+  "provenance": {
+    "evaluated_artifact_sha256": "5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776",
+    "note": "The published file is byte-identical to the artifact that produced the numbers above. sha256 is checked before and after upload.",
+    "export_determinism": "The export pipeline is NOT deterministic: two runs of the same configuration produced byte-different files of identical size. Only the hash above denotes the evaluated artifact."
+  },
+  "created_at": "2026-11-13T13:04Z"
+}

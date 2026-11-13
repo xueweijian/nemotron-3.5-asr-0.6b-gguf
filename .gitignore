@@ -1,0 +1,6 @@
+# runtime + model never live in git
+build/
+transcribe.cpp/
+*.gguf
+__pycache__/
+*.pyc
