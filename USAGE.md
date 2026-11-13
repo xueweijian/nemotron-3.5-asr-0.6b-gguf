@@ -68,9 +68,11 @@ Set threads to the **real CPU quota**, never to `nproc`. On a container with a 4
 `RTFx` in this repo means audio seconds ÷ wall-clock seconds over a whole batch, I/O included.
 Two things that are easy to get wrong:
 
-- **The published 14.7× is a server core** — 4 vCPU of an EPYC 9K65, not a laptop. The same 20
-  clips at 32 threads on the same box: 8 min 42 s, `RTFx 0.36×`. There is no consumer-laptop
-  measurement yet; run your own before sizing hardware.
+- **The published 14.7× is a server core** — 4 vCPU of an EPYC 9K65, not a laptop, with the
+  thread count matched to the quota (4 threads / 4 vCPU). Watch `nproc` on such a box: it reports
+  32 while the quota is 4, so a script that defaults to `nproc` oversubscribes 8× and collapses to
+  `RTFx 0.36×` — a configuration failure, not the hardware's ceiling. No consumer-laptop
+  measurement exists yet; run your own before sizing hardware.
 - **Smaller weights do not mean less CPU time.** Same machine, same 8 clips: 307.14 MB build
   → 11.7 s; 1277.03 MB f16 → 10.4 s. The quantized build is 6.7% *slower*, because `TQ1_0`/`Q4_0`
   quantize activations to `Q8_K` before each matmul while f16 rides AVX-512/F16C directly. What

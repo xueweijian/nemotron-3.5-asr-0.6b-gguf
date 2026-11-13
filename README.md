@@ -106,9 +106,11 @@ Measured on the patched runtime, CPU only, `--n-ctx 1024`, `--batch` mode:
 `RTFx` here means audio seconds ÷ wall-clock seconds over a whole batch, I/O included. It is
 not comparable to a per-clip streaming RTF.
 
-**This is a server core, not a laptop.** The same 20 clips on the same box at 32 threads take
-8 min 42 s — `RTFx 0.36×`, forty times slower. No consumer-laptop measurement exists yet;
-measure your own before you plan capacity.
+**This is a server core, not a laptop.** The 14.7× is 4 threads against a cgroup quota of 4 vCPU —
+thread count matched to the real quota. Beware `nproc` on such a box: it reports 32 (the host's
+core count) while the quota is 4, so a script that takes `nproc` as the thread count oversubscribes
+8× and lands at `RTFx 0.36×`. **That figure measures the misconfiguration, not the hardware.**
+No consumer-laptop measurement exists yet; measure your own before you plan capacity.
 
 Two more counter-intuitive facts, both measured:
 
