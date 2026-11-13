@@ -63,6 +63,19 @@ The path below assumes the manual build from §2, run from inside `transcribe.cp
 
 Set threads to the **real CPU quota**, never to `nproc`. On a container with a 4-core quota, `nproc` may report 32; using 32 makes it ~17× **slower** (28% of cycles lost to throttling). Measured on one 11.6 s clip: 2 threads 1.72 s, **4 threads 1.13 s**, 8 threads 1.49 s, 32 threads 19.67 s.
 
+### Throughput caveats
+
+`RTFx` in this repo means audio seconds ÷ wall-clock seconds over a whole batch, I/O included.
+Two things that are easy to get wrong:
+
+- **The published 14.7× is a server core** — 4 vCPU of an EPYC 9K65, not a laptop. The same 20
+  clips at 32 threads on the same box: 8 min 42 s, `RTFx 0.36×`. There is no consumer-laptop
+  measurement yet; run your own before sizing hardware.
+- **Smaller weights do not mean less CPU time.** Same machine, same 8 clips: 307.14 MB build
+  → 11.7 s; 1277.03 MB f16 → 10.4 s. The quantized build is 6.7% *slower*, because `TQ1_0`/`Q4_0`
+  quantize activations to `Q8_K` before each matmul while f16 rides AVX-512/F16C directly. What
+  you buy is disk and RAM (537 MB peak, fits a 1 GB box), not speed.
+
 ## 4. Reproduce the accuracy table
 
 The table in `README.md` is FLEURS test, 17 locales, 11,947 utterances, weighted by utterance count.

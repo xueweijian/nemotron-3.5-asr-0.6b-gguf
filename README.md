@@ -94,19 +94,42 @@ Why the other 23 still work: the tensors that decide *which* language is being t
 
 ## Speed and memory
 
-Measured on the patched runtime, CPU only, `--n-ctx 1024`, batch mode:
+Measured on the patched runtime, CPU only, `--n-ctx 1024`, `--batch` mode:
 
 | | |
 |---|---|
-| Hardware | AMD EPYC 9K65, **4 threads** |
-| Throughput | **RTFx 14.7×** (20 clips / 188.6 s audio in 12.83 s wall) |
-| Peak RSS | **537 MB** |
+| Hardware | 4 vCPU (cgroup-limited) of a 192-core AMD EPYC 9K65 (Zen 5), 8 GiB cap |
+| Throughput | **RTFx 14.7×** — 188.6 s of audio in 12.83 s wall, 20 clips |
+| Peak RSS | **537 MB** → this file runs on a **1 GB** machine (the f16 build needs 1.28 GB for weights alone) |
 | Disk | 324 MB |
 
-Two counter-intuitive facts worth knowing before you benchmark it yourself:
+`RTFx` here means audio seconds ÷ wall-clock seconds over a whole batch, I/O included. It is
+not comparable to a per-clip streaming RTF.
+
+**This is a server core, not a laptop.** The same 20 clips on the same box at 32 threads take
+8 min 42 s — `RTFx 0.36×`, forty times slower. No consumer-laptop measurement exists yet;
+measure your own before you plan capacity.
+
+Two more counter-intuitive facts, both measured:
 
 - **More threads is worse, badly.** The same 11.6 s clip: 2 threads 1.72 s, **4 threads 1.13 s**, 8 threads 1.49 s, **32 threads 19.67 s — 17× slower**, with 28% of cycles lost to throttling in `cpu.stat`. Set threads to the real CPU quota, not to `nproc`.
 - **`--n-ctx` matters only in `--batch` mode.** Single-file inference ignores it (the model has no KV ceiling to lower — transcribe.cpp documents `n_ctx` as a no-op for this architecture). In batch mode the default equals the model maximum, the decoder state leaks across items, and one bad sample drags the whole run to the ceiling: a 7.1 s clip took 20+ minutes. `--n-ctx 1024` fixed it (8 items in 11.6 s). That is a workaround for a batch-mode bug, not a property of this file.
+
+### Quantization buys size, not speed
+
+Same machine, same runtime, same 8 clips (86.3 s), 32 threads:
+
+| Build | Size | Wall | RTFx |
+|---|---|---|---|
+| f16 | 1277.03 MB | 10.4 s | 8.34× |
+| Mixed 2/4/8-bit (307 MB build) | 307.14 MB | 11.7 s | 7.35× |
+
+One 11 s clip, median of three warm runs: **1336.7 ms** (307 MB) vs **1252.8 ms** (f16) — the
+quantized build is **6.7% slower**. Cause, inferred and not ablated: this EPYC has AVX-512/F16C,
+so f16 dot products run on native instructions, while `TQ1_0`/`Q4_0` must quantize F32
+activations to `Q8_K` before every matmul. **The 6.7% was measured on the 307 MB build of this
+family, not on the 323.59 MB file** — smaller weights buy disk and RAM, not CPU time. On
+bandwidth-starved devices the ranking may well flip; that is untested.
 
 ### No GPU
 
