@@ -13,14 +13,11 @@ Everything here runs **CPU only**. There is no GPU path for `TQ1_0` — see the 
 
 ## 1. Get the model
 
-The 324 MB file is distributed through Hugging Face as `nemotron-3.5-asr-0.6b-325mb-gguf`. This repository deliberately does **not** carry it — a git host is the wrong place for a binary that large, and the checksum is what actually identifies the artifact.
-
 ```bash
-# once published on Hugging Face (replace <org> with the publisher's account):
-huggingface-cli download <org>/nemotron-3.5-asr-0.6b-325mb-gguf \
+huggingface-cli download xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf \
     nemotron-3.5-asr-0.6b-325mb.gguf --local-dir .
 
-# in every case, verify before use:
+# always verify before use:
 sha256sum -c SHA256SUMS
 # expect: nemotron-3.5-asr-0.6b-325mb.gguf: OK
 ```
@@ -29,7 +26,7 @@ Do not skip the checksum. The export pipeline is not byte-deterministic — a fi
 
 ## 2. Build the runtime
 
-`transcribe.cpp` needs one patch before it will accept this file. The patch is 28 lines and does two things:
+`transcribe.cpp` needs one patch before it will accept this file. The patch is 29 lines with 10 changed lines (+7/−3) and does two things:
 
 1. adds `GGML_TYPE_TQ1_0` to `TRANSCRIBE_QUANT_LINEAR_TYPES` — without it the loader rejects the type for linear tensors and you get a `nullptr` weight;
 2. routes 48 one-by-one convolutions from `GET_CONV` to `GET_LIN` — `GET_CONV` has its own whitelist that does not include `TQ1_0`.
@@ -47,18 +44,18 @@ Or, from this repository, `bash scripts/r2_build.sh` — it copies the source to
 
 ## 3. Transcribe
 
+The path below assumes the manual build from §2, run from inside `transcribe.cpp/`. If you used `scripts/r2_build.sh`, the binary is where the script printed it (`$TMPDIR/nemotron-build/tc-src/build/bin/transcribe-cli` by default) — read it from `build/build.json` if you lost the line.
+
 ```bash
 ./build/bin/transcribe-cli \
     -m nemotron-3.5-asr-0.6b-325mb.gguf \
     -l zh-CN \
-    -q \
-    --n-ctx 1024 \
-    audio.wav
+    -q audio.wav
 ```
 
 ### The two flags that matter
 
-**`--n-ctx 1024` is mandatory, not a tuning knob.** The default equals the model's maximum context, which makes batch mode over-allocate and collapse throughput. Measured: the same binary with the default lands in single-digit RTFx, with `1024` it reaches 14.7×.
+**`--n-ctx 1024` — only when you use `--batch`.** Single-file inference ignores it: transcribe.cpp documents `n_ctx` as a no-op for this architecture, and there is no KV ceiling to lower. In batch mode the default equals the model maximum, decoder state leaks across items, and one bad sample drags the whole run to the ceiling: a 7.1 s clip took 20+ minutes. Measured: the same binary with the default lands in single-digit RTFx, with `1024` it reaches 14.7× (8 items in 11.6 s). That is a workaround for a batch-mode bug, not a property of this file.
 
 **`-l` must be a locale the runtime's prompt dictionary knows.** Two FLEURS tags need remapping — `es-419 → es`, `ar-EG → ar`. The other 15 locales in this release work as-is. If you pass an unknown tag the CLI does not fail loudly; it falls back and the transcript quality silently changes. That is the single most common way to get wrong numbers.
 
@@ -87,6 +84,8 @@ python3 scripts/52_r2_formal.py \
 Output is per-locale `{n, primary, seconds, empty, fp16, delta_points}` plus a weighted total. `primary` is CER for `zh-CN` / `ja-JP` / `ko-KR` and WER elsewhere, chosen by `pzq.eval.should_use_cer`, which keys off the locale prefix. `--threads` is passed straight to the CLI.
 
 For a 5-minute smoke test instead of the full 40 hours of audio, `ci/assets/eval340_ids.json` fixes a 340-utterance subset (17 locales × 20). It was calibrated against the full set: 14.18% on the subset vs 14.21% on the full set, a 0.03-point gap. Good enough to detect a broken build, not good enough to publish a number.
+
+The published per-locale results are in [`eval/formal_b323.json`](eval/formal_b323.json) — `{locale, n, primary, seconds, empty, fp16, delta_points}` for all 17 locales, the same numbers as the table in `README.md`. Compare your run against it field by field; a matching `primary` per locale means the build and the audio are the same.
 
 ## 5. Limitations you should read before deploying
 

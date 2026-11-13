@@ -159,5 +159,6 @@ cat > "$EVIDENCE" <<JSON
 }
 JSON
 python3 -c "import json;json.load(open('$EVIDENCE'))"
+echo "  cli    : $BIN"
 echo "  evidence: $EVIDENCE"
 echo "== done =="

@@ -2,6 +2,10 @@ MIT License
 
 Copyright (c) 2026 nemotron-3.5-asr-0.6b-325mb contributors
 
+Portions of patches/r2/0001-tq1-linear-and-2d-pointwise.patch are derived from
+transcribe.cpp, Copyright (c) 2026 The transcribe.cpp authors, released under
+the MIT License (https://github.com/handy-computer/transcribe.cpp).
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

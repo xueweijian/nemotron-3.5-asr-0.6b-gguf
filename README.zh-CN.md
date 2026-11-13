@@ -6,6 +6,8 @@
 
 **下载：** [`nemotron-3.5-asr-0.6b-325mb.gguf`](https://huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf) · 323,593,760 字节（323.59 MB 十进制 / 308.6 MiB）· `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
 
+**同基座公开构建中体积最小。** 323.59 MB；可下载文件中次小者为 401.49 MB，常见的 `Q4_K_M` 档为 495.83 MB。这是对**可下载文件字节数**的比较，任何人都能自己复测——不涉及精度高低，本仓也不跨构建比较精度（见[「这不是什么」](#这不是什么)）。
+
 由 `nvidia/nemotron-3.5-asr-streaming-0.6b` revision [`ea30d66`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/ea30d66debe3740a08b573244286791d423d6b3e) 转换而来，目标运行时为 `transcribe.cpp` 0.4.2。
 
 > **非官方社区量化，与 NVIDIA 无隶属关系，也未获其背书。** `nemotron` 是 NVIDIA 的商标，此处仅作描述性使用。权重继承 **OpenMDW-1.1**，全文见 [`LICENSE-OpenMDW-1.1`](LICENSE-OpenMDW-1.1)，[`NOTICE`](NOTICE) 逐项记录了改动内容。本仓库内的脚本与补丁为 MIT 许可（[`LICENSE-CODE`](LICENSE-CODE)）。
@@ -25,7 +27,7 @@
 | 含有的类型 | `TQ1_0`、`Q4_0`、`Q8_0`、`F32` |
 | 体积 | 323.59 MB 十进制（308.6 MiB）—— 637,991,968 个元素，**平均 0.5072 字节/权重** |
 | 已评测语种 | 17（见下表） |
-| 运行时 | [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) 0.4.2 + 10 行补丁，仅 CPU |
+| 运行时 | [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) 0.4.2 + 29 行补丁（改动 10 行），仅 CPU |
 | 许可 | 权重 OpenMDW-1.1 · 代码 MIT |
 
 量化**不是均匀的**。先用敏感度分析给每个模块分配位宽，再按这份方案导出，让 ggml 现有的类型直接承载分配结果——没有自定义 kernel，也没有运行时反量化。四种都是 ggml 原生类型。
@@ -105,31 +107,64 @@ GGUF 元数据会列出每个张量及其类型，这是容器本身的属性，
 
 ## 怎么跑
 
+两个入口，同样三步。全流程不需要 GPU。
+
+| 你从哪来 | 你已经有什么 | 还缺什么 |
+|---|---|---|
+| Hugging Face（本页） | 模型文件 + `scripts/`、`patches/`、`USAGE.md` | `transcribe.cpp` |
+| GitHub | `scripts/`、`patches/`、`USAGE.md` | 模型文件 |
+
 ```bash
+# 0. 下载模型（约 324 MB）——已有则跳过
+huggingface-cli download xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf \
+    nemotron-3.5-asr-0.6b-325mb.gguf --local-dir .
+sha256sum -c SHA256SUMS            # 期望：nemotron-3.5-asr-0.6b-325mb.gguf: OK
+
 # 1. 带补丁编译 transcribe.cpp（补丁是必需的——不打补丁，加载器不接受
 #    TQ1_0 用于线性张量）
 git clone https://github.com/handy-computer/transcribe.cpp.git
 bash scripts/r2_build.sh
+# 脚本会打印 "cli    : <路径>"，下面这行从构建记录里把路径读回来
+CLI=$(python3 -c "import json;print(json.load(open('build/build.json'))['binaries']['transcribe-cli'])")
 
 # 2. 转写
-./build/bin/transcribe-cli \
-    -m nemotron-3.5-asr-0.6b-325mb.gguf \
-    -l zh-CN -q \
-    audio.wav
-
-# 3. 校验你下载的文件
-sha256sum -c SHA256SUMS
+"$CLI" -m nemotron-3.5-asr-0.6b-325mb.gguf -l zh-CN -q audio.wav
 ```
+
+**二进制不在 `./build/bin/`**——`r2_build.sh` 在临时副本里构建，默认位置是 `$TMPDIR/nemotron-build/tc-src/build/bin/transcribe-cli`。上面那行 `CLI=` 是最可靠的取法。如果你是手工构建（在 `transcribe.cpp/` 内 `cmake -S . -B build`），那 `./build/bin/transcribe-cli` 就是对的。
+
+依赖：C++17 工具链、`cmake` ≥ 3.20、`ninja`。实测峰值内存 537 MB。
 
 补丁只做两件事，都很小：把 `GGML_TYPE_TQ1_0` 加进线性张量的白名单；让 48 个 1×1 卷积走线性 getter 而不是 conv getter。完整流程见 `USAGE.md`，其中也包含复现精度表的方法。
 
 ## 这不是什么
 
-- **不是一个 40 语种模型。** 评测了 17 个，另 23 个未测。
+- **不是一个 40 语种模型。** 17 个语种在**全量 test split** 上实测——11,947 条、39.54 小时，每条都在同一份 manifest 上有 fp16 基线。另 23 个未测，不是「大概率没问题」。
 - **在 GPU 上不比基座快。** 没有 GPU 路径。
 - **导出不能字节级复现。** 同一份配置跑两次，得到字节不同、体积相同的文件。只有公布的 sha256 指向被评测的那一件——你自己重新导出，得到的是「某个文件」，不是「这个文件」。
-- **不是在宣称打败了其他所有量化。** 与其他社区构建的对比，只有在同一批音频、同一运行时、同一指标下才有意义。别处公布的数字常用纯英文 WER 或不同的归一化方式，与上面的 17 语种加权值不可直接比较，本文也不作任何此类比较。
+- **不比较跨构建的精度。** 别处公布的 WER 用的是不同音频、不同运行时版本、不同归一化方式，与上面的 17 语种加权值不可直接比较，本仓不作任何此类断言。**体积是唯一能无歧义比较的维度**——它是可下载文件的字节数：本件 323.59 MB，次小构建 401.49 MB，常见 `Q4_K_M` 档 495.83 MB。
 - **与 NVIDIA 无关。** 见文首声明。
+
+## 许可与署名
+
+- **模型权重** —— [OpenMDW-1.1](LICENSE-OpenMDW-1.1)，继承自
+  [`nvidia/nemotron-3.5-asr-streaming-0.6b`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
+  revision `ea30d66`。模型材料版权归 NVIDIA Corporation。本件是非官方派生，
+  与 NVIDIA 无隶属、无赞助、无背书关系。[`NOTICE`](NOTICE) 逐项记录了改动：
+  格式（NeMo → GGUF）、精度（按模块分配 TQ1_0 / Q4_0 / Q8_0 / F32）、未重训、未加数据。
+  OpenMDW-1.1 要求再分发时随附协议副本，故保留全文。
+- **脚本与补丁** —— MIT（[`LICENSE-CODE`](LICENSE-CODE)）。运行时补丁派生自
+  [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)
+  （MIT，版权归 The transcribe.cpp authors），该声明已保留在 `LICENSE-CODE` 中。
+- **评测数据** —— WER/CER 在 [FLEURS](https://huggingface.co/datasets/google/fleurs)
+  （CC-BY-4.0）上计算。本仓只分发句子的 **ID** 与参考文本的 SHA-256
+  （[`ci/assets/eval340_ids.json`](ci/assets/eval340_ids.json)），不分发音频，也不分发转写文本。
+  若你自行从 FLEURS 重建 manifest，CC-BY-4.0 约束的是你那一份副本。
+- **输出** —— 不设限。OpenMDW-1.1 原文写明：对使用模型材料生成的任何输出，
+  不施加任何使用、修改或分享方面的限制或义务。**你用这个模型转写出来的文字，
+  权利归你。**
+- **无担保** —— 按「现状」提供。ASR 输出必然有错（评测集加权 WER/CER 14.21%），
+  不可用于医疗、法律或安全关键场景。
 
 ## 联系方式
 

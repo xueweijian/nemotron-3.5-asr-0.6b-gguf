@@ -27,6 +27,8 @@ training data, and its intended use:
 https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b
 
 Licensing: the model materials are distributed under OpenMDW-1.1, retained in
-full as LICENSE-OpenMDW-1.1. The scripts and patch in this repository are MIT
-(LICENSE-CODE). This is an unofficial community derivative; it is not affiliated
-with, sponsored by, or endorsed by NVIDIA.
+full as LICENSE-OpenMDW-1.1. Model materials © NVIDIA Corporation. The scripts
+and patch in this repository are MIT (LICENSE-CODE); the runtime patch is
+derived from transcribe.cpp (MIT, © The transcribe.cpp authors). This is an
+unofficial community derivative; it is not affiliated with, sponsored by, or
+endorsed by NVIDIA.

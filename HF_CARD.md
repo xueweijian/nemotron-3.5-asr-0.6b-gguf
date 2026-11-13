@@ -51,6 +51,8 @@ A **323.59 MB** mixed-precision GGUF of [`nvidia/nemotron-3.5-asr-streaming-0.6b
 
 **Download:** [`nemotron-3.5-asr-0.6b-325mb.gguf`](https://huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf) · 323,593,760 bytes (323.59 MB decimal / 308.6 MiB) · `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
 
+**Smallest published build for this base model.** 323.59 MB, against 401.49 MB for the next smallest downloadable file and 495.83 MB for the common `Q4_K_M` preset. That is a byte count of files you can download and re-measure — not a claim about accuracy, which is not compared across builds here (see [What this is not](#what-this-is-not)).
+
 Converted from `nvidia/nemotron-3.5-asr-streaming-0.6b` at revision [`ea30d66`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/ea30d66debe3740a08b573244286791d423d6b3e), targeting `transcribe.cpp` 0.4.2.
 
 > **Unofficial community quantization. Not affiliated with or endorsed by NVIDIA.** `nemotron` is a NVIDIA trademark, used here descriptively. The weights inherit **OpenMDW-1.1** — the full text is in [`LICENSE-OpenMDW-1.1`](LICENSE-OpenMDW-1.1), and [`NOTICE`](NOTICE) records exactly what was changed. The scripts and patch in this repository are MIT ([`LICENSE-CODE`](LICENSE-CODE)).
@@ -70,7 +72,7 @@ Converted from `nvidia/nemotron-3.5-asr-streaming-0.6b` at revision [`ea30d66`](
 | Types present | `TQ1_0`, `Q4_0`, `Q8_0`, `F32` |
 | Size | 323.59 MB decimal (308.6 MiB) — **0.5072 bytes per weight** over 637,991,968 elements |
 | Languages evaluated | 17 (see table) |
-| Runtime | [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) 0.4.2 + a 10-line patch, CPU only |
+| Runtime | [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) 0.4.2 + a 29-line patch (10 changed lines), CPU only |
 | Licence | weights OpenMDW-1.1 · code MIT |
 
 The quantization is **not uniform**. Tensors were assigned per-module widths from a sensitivity analysis, then exported so that ggml's existing types carry the plan directly — no custom kernels, no runtime dequantization. All four types are stock ggml types.
@@ -150,30 +152,42 @@ Two counter-intuitive facts worth knowing before you benchmark it yourself:
 
 ## How to run
 
+Two entry points, same three steps. Nothing here needs a GPU.
+
+| You arrived from | You already have | You still need |
+|---|---|---|
+| Hugging Face (this card) | the model + `scripts/`, `patches/`, `USAGE.md` | `transcribe.cpp` |
+| GitHub | `scripts/`, `patches/`, `USAGE.md` | the model file |
+
 ```bash
-# 1. Build transcribe.cpp with the patch (the patch is required — TQ1_0 is not
-#    accepted by the loader for linear tensors without it)
+# 0. model (~324 MB) — skip if you already have it
+huggingface-cli download xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf \
+    nemotron-3.5-asr-0.6b-325mb.gguf --local-dir .
+sha256sum -c SHA256SUMS            # expect: nemotron-3.5-asr-0.6b-325mb.gguf: OK
+
+# 1. build transcribe.cpp with the patch (required — without it the loader
+#    rejects TQ1_0 for linear tensors)
 git clone https://github.com/handy-computer/transcribe.cpp.git
 bash scripts/r2_build.sh
+# the script prints "cli    : <path>"; this reads it back from the build record
+CLI=$(python3 -c "import json;print(json.load(open('build/build.json'))['binaries']['transcribe-cli'])")
 
-# 2. Transcribe
-./build/bin/transcribe-cli \
-    -m nemotron-3.5-asr-0.6b-325mb.gguf \
-    -l zh-CN -q \
-    audio.wav
-
-# 3. Verify the file you downloaded
-sha256sum -c SHA256SUMS
+# 2. transcribe
+"$CLI" -m nemotron-3.5-asr-0.6b-325mb.gguf -l zh-CN -q audio.wav
 ```
+
+**The binary is not at `./build/bin/`** — `r2_build.sh` builds in a scratch copy and the default location is `$TMPDIR/nemotron-build/tc-src/build/bin/transcribe-cli`. The `CLI=` line above is the reliable way to find it. If you build by hand instead (`cmake -S . -B build` inside `transcribe.cpp/`), then `./build/bin/transcribe-cli` is correct.
+
+Prerequisites: C++17 toolchain, `cmake` ≥ 3.20, `ninja`. Peak RSS 537 MB measured.
 
 The patch does two things, both minimal: it adds `GGML_TYPE_TQ1_0` to the linear-tensor whitelist, and it routes 48 one-by-one convolutions through the linear getter instead of the conv getter. See `USAGE.md` for the full walkthrough and for reproducing the accuracy table.
 
 ## What this is not
 
-- **Not a 40-locale model.** 17 evaluated, 23 untested.
+- **Not a 40-locale model.** 17 locales measured on the **full test split** — 11,947 utterances, 39.54 h, each with an fp16 baseline on the same manifest. The other 23 are untested, not "probably fine".
 - **Not faster than the base model on GPU.** There is no GPU path.
 - **Not bit-exact reproducible on export.** Two runs of the identical configuration produced byte-different files of identical size. Only the published sha256 denotes the evaluated artifact — if you re-export, you get "a" file, not "the" file.
-- **Not a claim of beating every other quantization.** Comparisons with other community builds are only meaningful when measured on the same audio, the same runtime, and the same metric. Numbers published elsewhere often use English-only WER or a different normalization; they are not directly comparable to the 17-locale weighted figure above, and no such comparison is asserted here.
+- **Not an accuracy comparison across builds.** Published WER figures elsewhere are measured on different audio, runtime versions and normalizations; they are not directly comparable to the 17-locale weighted number above, and none is asserted here. Size is the one axis that can be compared without ambiguity, because it is a byte count of a downloadable file: 323.59 MB here, 401.49 MB for the next smallest build, 495.83 MB for the common `Q4_K_M` preset.
 - **Not affiliated with NVIDIA.** See the notice at the top.
 
 ## Citation
@@ -201,6 +215,31 @@ Released 2026-11-13. If you find a number here that you cannot reproduce, that i
 - **只走 CPU**。`TQ1_0` 在 ggml 里没有 CUDA kernel，Metal 直接拒收这个类型。需要 GPU 请改用同基座的 Q4/Q5 版本。
 - **必须打补丁**。`transcribe.cpp` 0.4.2 默认不接受 `TQ1_0` 做线性层，仓库里的 patch 把该类型加进白名单后才能加载。
 - **导出不可字节复现**。同配置两次导出得到字节不同、体积相同的文件，只有本文的 sha256 对应被评测的那一份。
+
+## License and attribution
+
+- **Model weights** — [OpenMDW-1.1](LICENSE-OpenMDW-1.1), inherited from
+  [nvidia/nemotron-3.5-asr-streaming-0.6b](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
+  at revision `ea30d66`. Model materials © NVIDIA Corporation. This is an unofficial
+  derivative; not affiliated with, sponsored by, or endorsed by NVIDIA. [`NOTICE`](NOTICE)
+  records exactly what was changed. In short: format (NeMo → GGUF), precision
+  (per-module TQ1_0 / Q4_0 / Q8_0 / F32), no retraining, no new data.
+  The agreement is retained in full because OpenMDW-1.1 requires a copy to travel
+  with any redistribution.
+- **Scripts and patch** — MIT ([`LICENSE-CODE`](LICENSE-CODE)). The runtime patch
+  is derived from [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)
+  (MIT, © The transcribe.cpp authors); that notice is retained in `LICENSE-CODE`.
+- **Evaluation** — WER/CER computed on [FLEURS](https://huggingface.co/datasets/google/fleurs)
+  (CC-BY-4.0). This repository distributes only utterance **IDs** and a SHA-256 of the
+  reference text ([`ci/assets/eval340_ids.json`](ci/assets/eval340_ids.json)) — no audio,
+  no transcripts. If you rebuild the manifest from FLEURS yourself, CC-BY-4.0 applies
+  to your copy.
+- **Outputs** — unrestricted. OpenMDW-1.1 states that it "does not impose any
+  restrictions or obligations with respect to any use, modification, or sharing of any
+  outputs generated by using the Model Materials". Text you transcribe with this model
+  is yours to use.
+- **No warranty** — provided "as is". ASR output contains errors (14.21% weighted
+  WER/CER on the evaluated set). Not for medical, legal, or safety-critical use.
 
 ## Contact
 

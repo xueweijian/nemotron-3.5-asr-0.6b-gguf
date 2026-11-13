@@ -42,8 +42,8 @@
     "worst_locale_delta_points": 3.12,
     "worst_locale": "nl-NL",
     "empty_transcripts": 5,
-    "evidence": "docs/research/evidence/r2/formal_b323.json",
-    "report": "docs/research/B323_FINAL.md"
+    "evidence": "eval/formal_b323.json (per-locale n / primary / seconds / fp16 / delta)",
+    "subset": "ci/assets/eval340_ids.json (340-utterance smoke subset: 14.18% vs 14.21% full set)"
   },
   "status": "ADR-10: 6 of 6 pass after the size line was revised 320 -> 325 MB on 2026-11-13 (user decision); 323.59 MB sits 1.41 MB inside",
   "created_at": "2026-11-13T13:04Z",
@@ -58,7 +58,6 @@
   "public_release": {
     "repo": "github.com/xueweijian/nemotron-3.5-asr-0.6b-gguf",
     "mirror": "cnb.cool/xueweijian/nemotron-3.5-asr-0.6b-gguf",
-    "commit": "6a69623",
     "contains_weights": "code/docs only; weights on Hugging Face",
     "hf": "huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf",
     "hf_commit": "0cc4f044edf6fa7708e2ccee7d6685231cc3f760"
