@@ -90,6 +90,8 @@ What is narrower is the **measurement**, not the capability. 17 locales were eva
 
 FLEURS covers 39 of the 40 (only `nn-NO` is absent), so this was a **budget decision** — 17 locales already means 39.54 h of audio and 11,947 utterances. The other 23 are **untested here**, which is not the same as "supported and fine". If you need them, evaluate on your own audio before you ship.
 
+Why the other 23 still work: the tensors that decide *which* language is being transcribed were not pushed down to TQ1_0. `pred.embed` (640×13088), both `prompt.mlp` matrices, and the entire RNN-T joint (`joint.enc` / `joint.pred` / `joint.out`) are **Q8_0**; every normalisation weight and bias is **F32**. The 1.69-bpw ternary type is used only on encoder attention projections and intermediate FFN layers.
+
 ## Speed and memory
 
 Measured on the patched runtime, CPU only, `--n-ctx 1024`, batch mode:
