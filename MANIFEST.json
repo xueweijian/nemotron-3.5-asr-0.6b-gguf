@@ -1,68 +1,73 @@
 {
-  "name": "nemotron-3.5-asr-0.6b-325mb",
-  "display_name": "nemotron-3.5-asr-0.6b-325mb — 17-locale mixed-precision GGUF",
+  "name": "b325",
+  "display_name": "nemotron-3.5-asr-0.6b-325mb",
   "artifact": "nemotron-3.5-asr-0.6b-325mb.gguf",
   "size_bytes": 323593760,
   "size_mb_decimal": 323.59,
   "size_mib": 308.6,
   "sha256": "5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776",
+  "byte_identical_to": {
+    "github_release_asset": "https://github.com/xueweijian/parakeet-zh-quant-rt/releases/download/r2-b315/model-b323.gguf",
+    "github_asset_digest": "sha256:5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776",
+    "verified_at": "2026-11-13T13:04Z",
+    "method": "GitHub Releases API asset.digest vs local sha256sum",
+    "note": "the GitHub Release asset URL is no longer public (repo moved to private on 2026-11-13); the digest was captured before that"
+  },
   "base_model": "nvidia/nemotron-3.5-asr-streaming-0.6b",
   "base_license": "OpenMDW-1.1",
   "code_license": "MIT",
-  "unofficial": true,
-  "affiliation": "Not affiliated with or endorsed by NVIDIA. Community quantization of a NVIDIA base model.",
-  "size_budget": {
+  "size_limit": {
     "mb": 325,
     "self_imposed": true,
-    "note": "325 MB is a project-internal target, revised 220 -> 295 -> 320 -> 325 MB during development. It is not an external standard and not a property of the base model. The delivered artifact sits 1.41 MB inside this line and 3.59 MB above the earlier 320 MB line."
+    "note": "325 MB 是项目自定线（220 → 295 → 320 → 325 四次修订），非外部标准；本件超 320 线 3.59 MB"
   },
-  "format": {
-    "container": "GGUF",
-    "version": 3,
-    "tensors": 653,
-    "elements": 637991968,
-    "bytes_per_weight": 0.5072,
-    "type_histogram": {
-      "TQ1_0": {"tensors": 106, "elements": 164626432, "share_pct": 25.8},
-      "Q4_0": {"tensors": 155, "elements": 433061888, "share_pct": 67.9},
-      "Q8_0": {"tensors": 14, "elements": 39575552, "share_pct": 6.2},
-      "F32": {"tensors": 378, "elements": 728096, "share_pct": 0.1}
-    },
-    "histogram_note": "This is a result, not a recipe. GGUF metadata exposes per-tensor types to anyone who loads the file; it does not say how the assignment was found."
-  },
+  "format": "GGUF v3 (TQ1_0 106 / Q4_0 155 / Q8_0 14 / F32 378, 653 tensors, 637,991,968 elements)",
   "runtime": {
-    "engine": "transcribe.cpp (patched)",
-    "patch": "patches/r2/0001-tq1-linear-and-2d-pointwise.patch",
-    "required_flag": "--n-ctx 1024",
-    "required_flag_reason": "Default n-ctx equals the model maximum; batch mode then over-allocates and throughput collapses. 1024 is the measured working value.",
+    "engine": "transcribe.cpp 0.4.2 (patched)",
+    "patch": "patches/r2/0001-tq1-linear-and-2d-pointwise.patch (29 lines, 10 changed)",
     "rtfx": 14.7,
-    "rtfx_condition": "AMD EPYC 9K65, 4 threads, 20 clips / 188.6 s audio / 12.83 s wall",
+    "rtfx_condition": "AMD EPYC 9K65, 4 threads, 20 clips / 188.6 s audio",
     "peak_rss_mb": 537,
-    "gpu_support": "none — TQ1_0 has no CUDA kernel; Metal rejects the type. CPU and Vulkan are the paths."
+    "n_ctx_note": "--n-ctx 1024 is required only in --batch mode (decoder state leaks across items); single-file inference does not need it and transcribe.cpp documents n_ctx as a no-op for this architecture"
   },
   "eval": {
-    "dataset": "google/fleurs",
-    "split": "test",
+    "dataset": "google/fleurs test split",
     "utterances": 11947,
     "audio_hours": 39.54,
     "locales": 17,
-    "metric": "WER for 14 locales, CER for zh-CN / ja-JP / ko-KR",
     "weighted_primary": 0.1421,
     "fp16_weighted_primary": 0.1298,
     "delta_points": 1.23,
     "zh_cn_cer": 0.2022,
-    "zh_cn_cer_fp16": 0.2001,
     "worst_locale_delta_points": 3.12,
     "worst_locale": "nl-NL",
-    "best_locale_delta_points": 0.21,
-    "best_locale": "zh-CN",
     "empty_transcripts": 5,
-    "evaluated_at": "2026-11-13"
+    "evidence": "docs/research/evidence/r2/formal_b323.json",
+    "report": "docs/research/B323_FINAL.md"
   },
-  "provenance": {
-    "evaluated_artifact_sha256": "5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776",
-    "note": "The published file is byte-identical to the artifact that produced the numbers above. sha256 is checked before and after upload.",
-    "export_determinism": "The export pipeline is NOT deterministic: two runs of the same configuration produced byte-different files of identical size. Only the hash above denotes the evaluated artifact."
+  "status": "ADR-10: 6 of 6 pass after the size line was revised 320 -> 325 MB on 2026-11-13 (user decision); 323.59 MB sits 1.41 MB inside",
+  "created_at": "2026-11-13T13:04Z",
+  "bytes_per_weight": 0.5072,
+  "type_histogram": {
+    "TQ1_0": 106,
+    "Q4_0": 155,
+    "Q8_0": 14,
+    "F32": 378
   },
-  "created_at": "2026-11-13T13:04Z"
+  "tq1_0_detail": "89 attention projections (1024x1024) + 17 ff1.linear2 (4096x1024); ff1.linear1 is Q4_0 in every layer",
+  "public_release": {
+    "repo": "github.com/xueweijian/nemotron-3.5-asr-0.6b-gguf",
+    "mirror": "cnb.cool/xueweijian/nemotron-3.5-asr-0.6b-gguf",
+    "commit": "6a69623",
+    "contains_weights": "code/docs only; weights on Hugging Face",
+    "hf": "huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf",
+    "hf_commit": "0cc4f044edf6fa7708e2ccee7d6685231cc3f760"
+  },
+  "distribution": "published on Hugging Face 2026-11-14T00:15Z; round-trip sha256 verified",
+  "base_model_revision": "ea30d66debe3740a08b573244286791d423d6b3e",
+  "license_files": {
+    "weights": "LICENSE-OpenMDW-1.1 (2619 B, full text)",
+    "code": "LICENSE-CODE (MIT)",
+    "notice": "NOTICE (derivation statement)"
+  }
 }

@@ -1,0 +1,32 @@
+NOTICE
+
+Modifications: this repository redistributes a modified copy of
+nvidia/nemotron-3.5-asr-streaming-0.6b (revision ea30d66debe3740a08b573244286791d423d6b3e).
+
+What was changed:
+
+  1. Format. The NeMo checkpoint was converted to GGUF for transcribe.cpp
+     (https://github.com/handy-computer/transcribe.cpp). Conversion repackages
+     the weights and renames / re-lays-out tensors; no value was altered by the
+     repackaging itself.
+
+  2. Precision. Unlike a single-preset conversion, the published file stores
+     different modules at different widths (TQ1_0 ~1.69 bpw, Q4_0, Q8_0, F32).
+     This is a lossy numeric transformation. The per-module assignment is the
+     work of this project, not of NVIDIA.
+
+  3. Nothing else. The weights were not retrained, not fine-tuned, and no data
+     was added. The tokenizer, vocabulary and architecture are unchanged.
+
+  4. One runtime patch, shipped here as patches/r2/0001-*.patch, is required to
+     load TQ1_0 tensors into linear layers and to route the 48 pointwise 1x1
+     convolutions through the linear getter. It does not change any weight.
+
+The upstream model card is the authoritative description of the model, its
+training data, and its intended use:
+https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b
+
+Licensing: the model materials are distributed under OpenMDW-1.1, retained in
+full as LICENSE-OpenMDW-1.1. The scripts and patch in this repository are MIT
+(LICENSE-CODE). This is an unofficial community derivative; it is not affiliated
+with, sponsored by, or endorsed by NVIDIA.

@@ -2,11 +2,13 @@
 
 A **323.59 MB** mixed-precision GGUF of [`nvidia/nemotron-3.5-asr-streaming-0.6b`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) — a 600M cache-aware streaming RNNT model — that keeps **14.21% weighted WER/CER across 17 FLEURS locales**, against **12.98%** for the fp16 base: **+1.23 points**.
 
-Weights: **`nemotron-3.5-asr-0.6b-325mb.gguf`** · 323,593,760 bytes · `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
+**Download:** [`nemotron-3.5-asr-0.6b-325mb.gguf`](https://huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf) · 323,593,760 bytes (323.59 MB decimal / 308.6 MiB) · `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
 
-> **Unofficial community quantization. Not affiliated with or endorsed by NVIDIA.** `nemotron` is a NVIDIA trademark, used here descriptively. The base model ships under **OpenMDW-1.1**; this derivative keeps that license. The code in this repository is MIT.
+Converted from `nvidia/nemotron-3.5-asr-streaming-0.6b` at revision [`ea30d66`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b/commit/ea30d66debe3740a08b573244286791d423d6b3e), targeting `transcribe.cpp` 0.4.2.
 
-> **Status: the weights are pending upload to Hugging Face.** This repository carries the model card, the runtime patch, the evaluation driver and the checksums — not the 324 MB binary. Whatever copy you obtain, verify it against `SHA256SUMS` before use: the export pipeline is not byte-deterministic, so size alone does not identify the file.
+> **Unofficial community quantization. Not affiliated with or endorsed by NVIDIA.** `nemotron` is a NVIDIA trademark, used here descriptively. The weights inherit **OpenMDW-1.1** — the full text is in [`LICENSE-OpenMDW-1.1`](LICENSE-OpenMDW-1.1), and [`NOTICE`](NOTICE) records exactly what was changed. The scripts and patch in this repository are MIT ([`LICENSE-CODE`](LICENSE-CODE)).
+
+> **Verify before use.** The export pipeline is not byte-deterministic: two runs of the identical configuration produced byte-different files of the same size. Size alone does not identify the artifact — only the sha256 above does. `sha256sum -c SHA256SUMS` takes a second.
 
 > **The 325 MB budget is self-imposed.** It is not an external standard, not a round number from any paper, and not a property of the base model. Inside this project the line moved 220 → 295 → 320 → 325 MB as the accuracy cost of each step became measurable. Treat "325 MB" as a design target that this artifact meets, not as a claim that 325 MB is a meaningful threshold for anyone else.
 
@@ -21,7 +23,7 @@ Weights: **`nemotron-3.5-asr-0.6b-325mb.gguf`** · 323,593,760 bytes · `sha256 
 | Types present | `TQ1_0`, `Q4_0`, `Q8_0`, `F32` |
 | Size | 323.59 MB decimal (308.6 MiB) — **0.5072 bytes per weight** over 637,991,968 elements |
 | Languages evaluated | 17 (see table) |
-| Runtime | [`transcribe.cpp`](https://github.com/...) with a 28-line patch, CPU only |
+| Runtime | [`transcribe.cpp`](https://github.com/handy-computer/transcribe.cpp) 0.4.2 + a 10-line patch, CPU only |
 | Licence | weights OpenMDW-1.1 · code MIT |
 
 The quantization is **not uniform**. Tensors were assigned per-module widths from a sensitivity analysis, then exported so that ggml's existing types carry the plan directly — no custom kernels, no runtime dequantization. All four types are stock ggml types.
@@ -72,7 +74,7 @@ Reading the table:
 
 - **Best locale is Chinese**: `zh-CN` CER moves 20.01 → 20.22, **+0.21 pt**. The 4096-wide `feed_forward1.linear1`, the most sensitive tensor family in this architecture, is kept at a wider width precisely for this.
 - **Worst locale is Dutch**: `nl-NL` +3.12 pt. No locale exceeds +3.12, i.e. nothing collapses.
-- **5 of 11,947 transcripts are empty** (0.04%): 1 each in `en-US`, `de-DE`, `hi-IN`, and 2 in `ja-JP`. No repetition loops, no language-tag leakage was observed in the wider 68-clip parity run.
+- **5 of 11,947 transcripts are empty** (0.04%): 1 each in `en-US`, `de-DE`, `hi-IN`, and 2 in `ja-JP`. No repetition loops and no `<lang-XX>` tag leakage were observed anywhere in the run.
 - **The aggregate is not a cherry-pick**: the weighted number is computed over the full test split of all 17 locales, not over a subset that flatters the result.
 
 ### Why 17 locales and not 40
@@ -93,7 +95,7 @@ Measured on the patched runtime, CPU only, `--n-ctx 1024`, batch mode:
 Two counter-intuitive facts worth knowing before you benchmark it yourself:
 
 - **More threads is worse, badly.** The same 11.6 s clip: 2 threads 1.72 s, **4 threads 1.13 s**, 8 threads 1.49 s, **32 threads 19.67 s — 17× slower**, with 28% of cycles lost to throttling in `cpu.stat`. Set threads to the real CPU quota, not to `nproc`.
-- **`--n-ctx` is not optional.** The default equals the model maximum, which makes batch mode over-allocate and collapse throughput. 1024 is the measured value; it is the difference between RTFx 14.7 and single digits.
+- **`--n-ctx` matters only in `--batch` mode.** Single-file inference ignores it (the model has no KV ceiling to lower — transcribe.cpp documents `n_ctx` as a no-op for this architecture). In batch mode the default equals the model maximum, the decoder state leaks across items, and one bad sample drags the whole run to the ceiling: a 7.1 s clip took 20+ minutes. `--n-ctx 1024` fixed it (8 items in 11.6 s). That is a workaround for a batch-mode bug, not a property of this file.
 
 ### No GPU
 
@@ -105,13 +107,12 @@ Two counter-intuitive facts worth knowing before you benchmark it yourself:
 # 1. Build transcribe.cpp with the patch (the patch is required — TQ1_0 is not
 #    accepted by the loader for linear tensors without it)
 git clone https://github.com/handy-computer/transcribe.cpp.git
-cp -r patches/r2 transcribe.cpp/../patches-r2   # or apply manually with `patch -p1`
 bash scripts/r2_build.sh
 
 # 2. Transcribe
 ./build/bin/transcribe-cli \
     -m nemotron-3.5-asr-0.6b-325mb.gguf \
-    -l zh-CN -q --n-ctx 1024 \
+    -l zh-CN -q \
     audio.wav
 
 # 3. Verify the file you downloaded
