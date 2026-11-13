@@ -1,16 +1,5 @@
 # nemotron-3.5-asr-0.6b-325mb
 
-**中文摘要** · [完整中文文档 `README.zh-CN.md`](README.zh-CN.md) · [English full card ↓](#what-it-is)
-
-`nvidia/nemotron-3.5-asr-streaming-0.6b`（600M 流式 RNNT）的 **323.59 MB** 混合精度 GGUF。17 个 FLEURS 语种的加权 WER/CER 为 **14.21%**，fp16 基座为 **12.98%**，退化 **+1.23 个百分点**；最差语种荷兰语 +3.12，中文 +0.21。
-
-- **325 MB 是我自己定的线**，不是外部标准。项目内从 220 → 295 → 320 → 325 MB 一路实测推进，每一步的精度代价都量过。它是「这件产物满足的设计目标」，不代表 325 MB 对别人有什么意义。
-- **只走 CPU**。`TQ1_0` 在 ggml 里没有 CUDA kernel，Metal 直接拒收这个类型。需要 GPU 请改用同基座的 Q4/Q5 版本。
-- **必须打补丁**。`transcribe.cpp` 0.4.2 默认不接受 `TQ1_0` 做线性层，仓库里的 patch 把该类型加进白名单后才能加载。
-- **导出不可字节复现**。同配置两次导出得到字节不同、体积相同的文件，只有本文的 sha256 对应被评测的那一份。
-
----
-
 A **323.59 MB** mixed-precision GGUF of [`nvidia/nemotron-3.5-asr-streaming-0.6b`](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) — a 600M cache-aware streaming RNNT model — that keeps **14.21% weighted WER/CER across 17 FLEURS locales**, against **12.98%** for the fp16 base: **+1.23 points**.
 
 **Download:** [`nemotron-3.5-asr-0.6b-325mb.gguf`](https://huggingface.co/xiaoxiaojian/nemotron-3.5-asr-0.6b-325mb-gguf) · 323,593,760 bytes (323.59 MB decimal / 308.6 MiB) · `sha256 5d8c5e0afce2b9ad9a62d5927078c4a6c902f6de4e2bf0bd83b75b6206143776`
@@ -140,12 +129,6 @@ The patch does two things, both minimal: it adds `GGML_TYPE_TQ1_0` to the linear
 - **Not a claim of beating every other quantization.** Comparisons with other community builds are only meaningful when measured on the same audio, the same runtime, and the same metric. Numbers published elsewhere often use English-only WER or a different normalization; they are not directly comparable to the 17-locale weighted figure above, and no such comparison is asserted here.
 - **Not affiliated with NVIDIA.** See the notice at the top.
 
-## Contact
-
-- Technical issues: open an issue in this repository.
-- Commercial licensing / collaboration: [imysql@foxmail.com](mailto:imysql@foxmail.com)
-- Open to work on ASR quantization and on-device deployment.
-
 ## Citation
 
 ```bibtex
@@ -158,3 +141,22 @@ The patch does two things, both minimal: it adds `GGML_TYPE_TQ1_0` to the linear
 ```
 
 Released 2026-11-13. If you find a number here that you cannot reproduce, that is a bug — please open an issue with the audio, the command, and the runtime commit.
+
+---
+
+## 中文摘要
+
+完整中文文档见 [`README.zh-CN.md`](README.zh-CN.md) · English above
+
+`nvidia/nemotron-3.5-asr-streaming-0.6b`（600M 流式 RNNT）的 **323.59 MB** 混合精度 GGUF。17 个 FLEURS 语种的加权 WER/CER 为 **14.21%**，fp16 基座为 **12.98%**，退化 **+1.23 个百分点**；最差语种荷兰语 +3.12，中文 +0.21。
+
+- **325 MB 是我自己定的线**，不是外部标准。项目内从 220 → 295 → 320 → 325 MB 一路实测推进，每一步的精度代价都量过。它是「这件产物满足的设计目标」，不代表 325 MB 对别人有什么意义。
+- **只走 CPU**。`TQ1_0` 在 ggml 里没有 CUDA kernel，Metal 直接拒收这个类型。需要 GPU 请改用同基座的 Q4/Q5 版本。
+- **必须打补丁**。`transcribe.cpp` 0.4.2 默认不接受 `TQ1_0` 做线性层，仓库里的 patch 把该类型加进白名单后才能加载。
+- **导出不可字节复现**。同配置两次导出得到字节不同、体积相同的文件，只有本文的 sha256 对应被评测的那一份。
+
+## Contact
+
+- Technical issues: open an issue in this repository.
+- Commercial licensing / collaboration: [imysql@foxmail.com](mailto:imysql@foxmail.com)
+- Open to work on ASR quantization and on-device deployment.
