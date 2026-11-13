@@ -35,6 +35,8 @@
     "utterances": 11947,
     "audio_hours": 39.54,
     "locales": 17,
+    "model_locales": 40,
+    "model_locales_note": "19 transcription-ready + 13 broad-coverage + 8 adaptation-ready; all 40 retained — quantization changes precision, not the tokenizer or the language-prompt kernel",
     "weighted_primary": 0.1421,
     "fp16_weighted_primary": 0.1298,
     "delta_points": 1.23,

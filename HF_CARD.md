@@ -128,7 +128,14 @@ Reading the table:
 
 ### Why 17 locales and not 40
 
-The base model advertises 40 language-locales. FLEURS — the only multilingual set with per-locale test splits large enough to be meaningful — covers 17 of them. The remaining 23 are **untested here**, not "supported and fine". If you need those, evaluate before you ship.
+The base model advertises **40 language-locales**: 19 transcription-ready, 13 broad-coverage, 8 adaptation-ready (recognised by the tokenizer, but needing fine-tuning to transcribe reliably). **This build keeps all 40.** Quantization changes numerical precision only — not the architecture, not the tokenizer, not the language-prompt kernel. Whatever the base model can transcribe, this file can transcribe.
+
+What is narrower is the **measurement**, not the capability. 17 locales were evaluated:
+
+- 15 of the 19 transcription-ready locales;
+- 2 broad-coverage ones: `pl-PL` and `zh-CN`.
+
+FLEURS covers 39 of the 40 (only `nn-NO` is absent), so this was a **budget decision** — 17 locales already means 39.54 h of audio and 11,947 utterances. The other 23 are **untested here**, which is not the same as "supported and fine". If you need them, evaluate on your own audio before you ship.
 
 ## Speed and memory
 

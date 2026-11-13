@@ -90,7 +90,7 @@ The published per-locale results are in [`eval/formal_b323.json`](eval/formal_b3
 ## 5. Limitations you should read before deploying
 
 - **No GPU.** `TQ1_0` has no CUDA kernel; Metal rejects the type outright; Vulkan has one but is untested here. If you need GPU throughput, use a Q4/Q5 build of the same base model.
-- **17 of 40 locales tested.** The other 23 are unmeasured, not "probably fine".
+- **17 of 40 locales tested.** The model supports 40 language-locales and this file keeps all of them, but only 17 were measured. The other 23 are unmeasured, not "probably fine". FLEURS covers 39 of the 40 (`nn-NO` is the exception), so widening the sweep is a question of compute, not of missing data.
 - **5 empty transcripts out of 11,947** (0.04%), spread over `en-US`, `de-DE`, `hi-IN` and `ja-JP`. Rare, but a production pipeline needs a fallback.
 - **Worst locale is `nl-NL` at +3.12 points** over fp16. If Dutch is your main language, the trade may not be worth it.
 - **The quantization is lossy by design.** 14.21% vs 12.98% weighted. If you need fp16 accuracy, this is not that.
